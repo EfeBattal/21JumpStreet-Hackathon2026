@@ -26,14 +26,12 @@ public class GameManager : MonoBehaviour
     // current cards in the deck
     private List<GameObject> workingDeck = new List<GameObject>();
 
-    private int currBet;
 
     private void Start()
     {
         workingDeck.Clear();
         FillWorkingDeck();
         ShuffleDeck();
-        currBet = 0;
         StartCoroutine(StartGameSequence());
 
     }
