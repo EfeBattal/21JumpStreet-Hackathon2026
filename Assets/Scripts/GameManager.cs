@@ -248,3 +248,4 @@ public class GameManager : MonoBehaviour
     StartCoroutine(StartGameSequence());
 }
 
+}
