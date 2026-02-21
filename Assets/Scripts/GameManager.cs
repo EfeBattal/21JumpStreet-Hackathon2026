@@ -33,6 +33,8 @@ public class GameManager : MonoBehaviour
     public GameObject[] masterDeck;
     private const int TOTAL_CARD_NUM = 104;
 
+    private bool isActionAllowed = false;
+
     // current cards in the deck
     private List<GameObject> workingDeck = new List<GameObject>();
 
@@ -55,8 +57,6 @@ public class GameManager : MonoBehaviour
     public void StartGame()
     {
         startUIContainer.SetActive(false);
-        actionUIContainer.SetActive(true);
-        
         StartCoroutine(StartGameSequence());
 
     }
@@ -175,7 +175,11 @@ public class GameManager : MonoBehaviour
         DealCardTo(dealer, false);
         yield return new WaitForSeconds(0.5f);
 
+        actionUIContainer.SetActive(true);
+        isActionAllowed = true;
+
         checkStatus();
+
     }
 
     public int GetBestScore(int[] scores)
@@ -189,11 +193,15 @@ public class GameManager : MonoBehaviour
 
     public void OnHitPressed()
     {
+        if(!isActionAllowed) return;
+
         DealCardTo(player, true);
         checkStatus();
     }
     public void OnDoublePressed()
     {
+        if(!isActionAllowed) return;
+
         if(currentBet <= player.currMoney)
         {
             player.currMoney -= currentBet;
@@ -206,10 +214,13 @@ public class GameManager : MonoBehaviour
     }
     public void OnStandPressed()
     {
+        if(!isActionAllowed) return;
         StartCoroutine(DealerTurnSequence());
     }
     private System.Collections.IEnumerator DealerTurnSequence()
     {
+        yield return new WaitForSeconds(1f);
+
         if (dealer.currentCards.Count > 1)
         {
             dealer.currentCards[1].transform.rotation = Quaternion.Euler(-90, 0, 90); 
@@ -368,6 +379,7 @@ public class GameManager : MonoBehaviour
         int currentScore = GetBestScore(SumCards(player));
         if((currentScore > 21) || (player.cardsInHand == 2 && currentScore == 21))
         {
+            isActionAllowed = false;
             StartCoroutine(DealerTurnSequence());
         }
     }
@@ -392,5 +404,17 @@ public class GameManager : MonoBehaviour
             checkStatus(); 
         }
     }
+
+    private System.Collections.IEnumerator HitSequence()
+    {
+        DealCardTo(player, true);
+
+        yield return new WaitForSeconds(0.5f);
+
+        isActionAllowed = true;
+
+        checkStatus();
+    }
+
 }
 
