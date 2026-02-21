@@ -30,6 +30,13 @@ public class GameManager : MonoBehaviour
     public GameObject EndUIContainer;
     public TextMeshProUGUI endingMessage;
 
+    [Header("Audio Effects")]
+    public AudioSource sfxAudioSource; // Dedicated AudioSource for sound effects
+    public AudioClip hitSound;         // Blaster or Lightsaber
+    public AudioClip blackjackSound;   // Obi-Wan "Hello There"
+    public AudioClip dealerBustSound;  // Chewbacca Roar
+    public AudioClip playerLostSound;
+
     public GameObject[] masterDeck;
     private const int TOTAL_CARD_NUM = 104;
 
@@ -194,9 +201,11 @@ public class GameManager : MonoBehaviour
     public void OnHitPressed()
     {
         if(!isActionAllowed) return;
+        sfxAudioSource.PlayOneShot(hitSound);
+        actionUIContainer.SetActive(false);
+        isActionAllowed = false;
 
-        DealCardTo(player, true);
-        checkStatus();
+        StartCoroutine(HitSequence());
     }
     public void OnDoublePressed()
     {
@@ -215,6 +224,8 @@ public class GameManager : MonoBehaviour
     public void OnStandPressed()
     {
         if(!isActionAllowed) return;
+        actionUIContainer.SetActive(false);
+        isActionAllowed = false;
         StartCoroutine(DealerTurnSequence());
     }
     private System.Collections.IEnumerator DealerTurnSequence()
@@ -330,14 +341,17 @@ public class GameManager : MonoBehaviour
         {
             player.currMoney += (int)(currentBet * 2.5);
             endingMessage.text = $"BLACKJACK!\n You Won: ${currentBet*2.5}";
+            sfxAudioSource.PlayOneShot(blackjackSound);
         } else if(handResult == "BUST")
         {
             player.currMoney += (currentBet * 2);
+            sfxAudioSource.PlayOneShot(dealerBustSound);
             endingMessage.text = $"Dealer BUST!!!!\n You Won: ${currentBet}";
         } 
         else
         {
             endingMessage.text = "You Lost...\n";
+            sfxAudioSource.PlayOneShot(playerLostSound);
         }
         
     }
@@ -354,17 +368,47 @@ public class GameManager : MonoBehaviour
         betUIContainer.SetActive(true);
         actionUIContainer.SetActive(false);
         EndUIContainer.SetActive(true);
+
+        if (player.currMoney <= 0)
+        {
+            endingMessage.text += "\n\nBANKRUPT!\nPress Restart for a new loan.";
+        }
     }
 
     public void RestartRound()
     {
-        if(currentBet <= player.currMoney)
+        if (player.currMoney <= 0)
         {
-            actionUIContainer.SetActive(true);
+            player.currMoney = 50;
+            currentBet = 0;
+            
+            EndUIContainer.SetActive(false);
+            actionUIContainer.SetActive(false);
+            betUIContainer.SetActive(true);
+            startUIContainer.SetActive(true);
+            
+            ResetRound();
+            UpdateUI();
+        }
+        else if (currentBet <= player.currMoney)
+        {
+            actionUIContainer.SetActive(false);
             EndUIContainer.SetActive(false);
             startUIContainer.SetActive(false);
+            
             ResetRound();
             StartCoroutine(StartGameSequence());
+        }
+        else
+        {
+            currentBet = 0;
+            EndUIContainer.SetActive(false);
+            actionUIContainer.SetActive(false);
+            betUIContainer.SetActive(true);
+            startUIContainer.SetActive(true);
+            
+            ResetRound();
+            UpdateUI();
         }
     }
 
@@ -388,11 +432,8 @@ public class GameManager : MonoBehaviour
     {
         DealCardTo(player, true);
         
-        // Wait for the animation to finish (adjust based on your dealSpeed)
         yield return new WaitForSeconds(1.0f); 
         
-        // Check if they busted on the double down.
-        // If they didn't bust, manually start the dealer's turn because they are forced to stand.
         int currentScore = GetBestScore(SumCards(player));
         if (currentScore <= 21) 
         {
@@ -400,7 +441,6 @@ public class GameManager : MonoBehaviour
         } 
         else 
         {
-            // If they busted, checkStatus() (which you should call) will handle the ending
             checkStatus(); 
         }
     }
@@ -411,6 +451,7 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
+        actionUIContainer.SetActive(true);
         isActionAllowed = true;
 
         checkStatus();
