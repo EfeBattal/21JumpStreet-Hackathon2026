@@ -318,7 +318,7 @@ public class GameManager : MonoBehaviour
         } else if(handResult == "BLACKJACK")
         {
             player.currMoney += (int)(currentBet * 2.5);
-            endingMessage.text = $"BLACKJACK!\n You Won: ${currentBet*2}";
+            endingMessage.text = $"BLACKJACK!\n You Won: ${currentBet*2.5}";
         } else if(handResult == "BUST")
         {
             player.currMoney += (currentBet * 2);
