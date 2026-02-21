@@ -31,10 +31,10 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI endingMessage;
 
     [Header("Audio Effects")]
-    public AudioSource sfxAudioSource; // Dedicated AudioSource for sound effects
-    public AudioClip hitSound;         // Blaster or Lightsaber
-    public AudioClip blackjackSound;   // Obi-Wan "Hello There"
-    public AudioClip dealerBustSound;  // Chewbacca Roar
+    public AudioSource sfxAudioSource;
+    public AudioClip hitSound;
+    public AudioClip blackjackSound;
+    public AudioClip dealerBustSound;
     public AudioClip playerLostSound;
 
     public GameObject[] masterDeck;
@@ -42,7 +42,6 @@ public class GameManager : MonoBehaviour
 
     private bool isActionAllowed = false;
 
-    // current cards in the deck
     private List<GameObject> workingDeck = new List<GameObject>();
 
     private int currentBet;
@@ -79,13 +78,10 @@ public class GameManager : MonoBehaviour
 
     private void ShuffleDeck()
     {
-        // Fisher-Yates shuffle algorithm
         for (int i = workingDeck.Count - 1; i > 0; i--)
         {
-            // Pick a random index from 0 to i
             int randomIndex = UnityEngine.Random.Range(0, i + 1);
 
-            // Swap the cards
             GameObject tempCard = workingDeck[i];
             workingDeck[i] = workingDeck[randomIndex];
             workingDeck[randomIndex] = tempCard;
