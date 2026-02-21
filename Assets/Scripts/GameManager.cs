@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
@@ -20,18 +21,42 @@ public class GameManager : MonoBehaviour
     [Header("Card Maker")]
     public GameObject cardDeck;
 
+    [Header("UI Text Reference")]
+    public TextMeshProUGUI balanceText;
+    public TextMeshProUGUI betText;
+    public GameObject startUIContainer;
+    public GameObject actionUIContainer;
+    public GameObject betUIContainer;
+    public GameObject EndUIContainer;
+    public TextMeshProUGUI endingMessage;
 
     public GameObject[] masterDeck;
+    private const int TOTAL_CARD_NUM = 104;
 
     // current cards in the deck
     private List<GameObject> workingDeck = new List<GameObject>();
 
+    private int currentBet;
+    private string handResult;
 
     private void Start()
     {
         workingDeck.Clear();
         FillWorkingDeck();
         ShuffleDeck();
+        currentBet = 0;
+        handResult = "LOSS";
+        actionUIContainer.SetActive(false);
+        betUIContainer.SetActive(true);
+        startUIContainer.SetActive(true);
+        EndUIContainer.SetActive(false);
+        UpdateUI();
+    }
+    public void StartGame()
+    {
+        startUIContainer.SetActive(false);
+        actionUIContainer.SetActive(true);
+        
         StartCoroutine(StartGameSequence());
 
     }
@@ -44,8 +69,6 @@ public class GameManager : MonoBehaviour
             workingDeck.Add(card);
         }
     }
-
-
 
     private void ShuffleDeck()
     {
@@ -118,22 +141,28 @@ public class GameManager : MonoBehaviour
         bool isThereAnAce = false;
         foreach(GameObject card in targetUser.currentCards)
         {
-            if(card.GetComponent<CardData>().isAce == true && !isThereAnAce)
+            if(card.GetComponent<CardData>().isAce)
             {
-                results[0] += 1;
-                results[1] += 11;
                 isThereAnAce = true;
-            } else
-            {
-                results[0] += card.GetComponent<CardData>().value;
-                results[1] += card.GetComponent<CardData>().value;
             }
+            
+            results[0] += card.GetComponent<CardData>().value;
+        }
+        results[1] = results[0];
+        if(isThereAnAce)
+        {
+            results[1] += 10;
         }
         return results;
     }
 
     public System.Collections.IEnumerator StartGameSequence()
     {
+
+        betUIContainer.SetActive(false);
+        player.currMoney -= currentBet;
+        UpdateUI();
+
         DealCardTo(player, true);
         yield return new WaitForSeconds(0.5f);
 
@@ -144,6 +173,9 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
 
         DealCardTo(dealer, false);
+        yield return new WaitForSeconds(0.5f);
+
+        checkStatus();
     }
 
     public int GetBestScore(int[] scores)
@@ -158,12 +190,19 @@ public class GameManager : MonoBehaviour
     public void OnHitPressed()
     {
         DealCardTo(player, true);
-        int currentScore = GetBestScore(SumCards(player));
-
-        if(currentScore > 21)
+        checkStatus();
+    }
+    public void OnDoublePressed()
+    {
+        if(currentBet <= player.currMoney)
         {
-            Debug.Log("Player Busted with " + currentScore + "!");
+            player.currMoney -= currentBet;
+            currentBet *= 2;
+            UpdateUI();
+            
+            StartCoroutine(DoubleDownSequence());
         }
+        
     }
     public void OnStandPressed()
     {
@@ -171,51 +210,65 @@ public class GameManager : MonoBehaviour
     }
     private System.Collections.IEnumerator DealerTurnSequence()
     {
-        // 1. Reveal the dealer's hidden card (the second one dealt)
         if (dealer.currentCards.Count > 1)
         {
-            // Using the face-up rotation from our earlier fix
             dealer.currentCards[1].transform.rotation = Quaternion.Euler(-90, 0, 90); 
         }
 
-        yield return new WaitForSeconds(1.0f); // Pause for dramatic effect
+        yield return new WaitForSeconds(1.0f);
 
         int dealerScore = GetBestScore(SumCards(dealer));
-
-        // 2. Dealer must hit on 16 or lower
-        while (dealerScore < 17)
-        {
-            DealCardTo(dealer, true);
-            yield return new WaitForSeconds(1.2f); // Wait for the animation to finish
-            dealerScore = GetBestScore(SumCards(dealer));
-        }
-
-        // 3. Determine the Winner
         int playerScore = GetBestScore(SumCards(player));
+
+        if(playerScore <= 21)
+        {
+            while (dealerScore < 17)
+            {
+                DealCardTo(dealer, true);
+                yield return new WaitForSeconds(1.2f);
+                dealerScore = GetBestScore(SumCards(dealer));
+            }
+        }
         
-        if (dealerScore > 21) 
+
+        if(playerScore > 21)
         {
-            Debug.Log("Dealer Busts! Player Wins!");
-        } 
-        else if (playerScore > dealerScore) 
+            handResult = "LOST";
+        } else if(dealerScore > 21)
         {
-            Debug.Log("Player Wins! " + playerScore + " to " + dealerScore);
-        } 
-        else if (dealerScore > playerScore) 
+            if(playerScore == 21) { handResult = "BLACKJACK"; } 
+            else
+            {
+                handResult = "BUST";
+            }
+        } else
         {
-            Debug.Log("Dealer Wins! " + dealerScore + " to " + playerScore);
-        } 
-        else 
-        {
-            Debug.Log("Push! It's a tie.");
+            if(playerScore > dealerScore)
+            {
+                if(playerScore == 21)
+                {
+                    handResult = "BLACKJACK";
+                } else
+                {
+                    handResult = "WIN";
+                }
+            } else if(playerScore == dealerScore)
+            {
+                handResult = "PUSH";
+            } else
+            {
+                handResult = "LOSS";
+            }
         }
 
-        Invoke("ResetRound", 4.0f);
+    
+        ResolveHand();
+        UpdateUI();
+        ShowEndUI();
     }
 
     public void ResetRound()
 {
-    // 1. Destroy the physical 3D card models on the table
     foreach (GameObject card in player.currentCards)
     {
         Destroy(card);
@@ -225,25 +278,119 @@ public class GameManager : MonoBehaviour
         Destroy(card);
     }
 
-    // 2. Clear the data lists so the math resets
     player.currentCards.Clear();
     player.cardsInHand = 0;
 
     dealer.currentCards.Clear();
     dealer.cardsInHand = 0;
 
-    // 3. Deck Management: If the shoe is running low, reshuffle!
-    // (A standard casino reshuffles when the cut card is reached, usually ~20% of the shoe)
-    if (workingDeck.Count < 20) 
+    if (workingDeck.Count < (0.2*TOTAL_CARD_NUM))
     {
-        Debug.Log("Reshuffling the shoe!");
         workingDeck.Clear();
         FillWorkingDeck();
         ShuffleDeck();
     }
-
-    // 4. Trigger the opening deal again
-    StartCoroutine(StartGameSequence());
 }
 
+    public void AddToBet(int amount)
+    {
+        if (player.currMoney >= currentBet + amount)
+        {
+            currentBet += amount;
+            UpdateUI();
+        } else
+        {
+            print("Insufficient funds");
+        }
+    }
+
+    public void ResolveHand()
+    {
+        if (handResult == "WIN")
+        {
+            player.currMoney += (currentBet * 2);
+            endingMessage.text = $"You WIN!\n You Won: ${currentBet}";
+        
+        } else if (handResult == "PUSH")
+        {   
+            player.currMoney += currentBet;
+            endingMessage.text = $"It's a PUSH.\n";
+        } else if(handResult == "BLACKJACK")
+        {
+            player.currMoney += (int)(currentBet * 2.5);
+            endingMessage.text = $"BLACKJACK!\n You Won: ${currentBet*2.5}";
+        } else if(handResult == "BUST")
+        {
+            player.currMoney += (currentBet * 2);
+            endingMessage.text = $"Dealer BUST!!!!\n You Won: ${currentBet}";
+        } 
+        else
+        {
+            endingMessage.text = "You Lost...\n";
+        }
+        
+    }
+
+    private void UpdateUI()
+    {
+        balanceText.text = $"Balance:\n${player.currMoney}";
+        betText.text = $"Current Bet:\n${currentBet}";
+    }
+
+    private void ShowEndUI()
+    {
+        startUIContainer.SetActive(false);
+        betUIContainer.SetActive(true);
+        actionUIContainer.SetActive(false);
+        EndUIContainer.SetActive(true);
+    }
+
+    public void RestartRound()
+    {
+        if(currentBet <= player.currMoney)
+        {
+            actionUIContainer.SetActive(true);
+            EndUIContainer.SetActive(false);
+            startUIContainer.SetActive(false);
+            ResetRound();
+            StartCoroutine(StartGameSequence());
+        }
+    }
+
+    public void ResetBet()
+    {
+        currentBet = 0;
+        UpdateUI();
+    }
+
+    public void checkStatus()
+    {
+        int currentScore = GetBestScore(SumCards(player));
+        if((currentScore > 21) || (player.cardsInHand == 2 && currentScore == 21))
+        {
+            StartCoroutine(DealerTurnSequence());
+        }
+    }
+
+    private System.Collections.IEnumerator DoubleDownSequence()
+    {
+        DealCardTo(player, true);
+        
+        // Wait for the animation to finish (adjust based on your dealSpeed)
+        yield return new WaitForSeconds(1.0f); 
+        
+        // Check if they busted on the double down.
+        // If they didn't bust, manually start the dealer's turn because they are forced to stand.
+        int currentScore = GetBestScore(SumCards(player));
+        if (currentScore <= 21) 
+        {
+            StartCoroutine(DealerTurnSequence());
+        } 
+        else 
+        {
+            // If they busted, checkStatus() (which you should call) will handle the ending
+            checkStatus(); 
+        }
+    }
 }
+

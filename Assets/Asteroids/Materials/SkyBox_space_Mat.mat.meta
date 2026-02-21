@@ -1,7 +1,8 @@
 fileFormatVersion: 2
-guid: 99c9720ab356a0642a771bea13969a05
-DefaultImporter:
+guid: a64b16200aceffc41bae2464d473c240
+NativeFormatImporter:
   externalObjects: {}
+  mainObjectFileID: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 
@@ -9,6 +10,6 @@ AssetOrigin:
   serializedVersion: 1
   productId: 281176
   packageName: Asteroids Belt procedural generator URP
-  packageVersion: 
-  assetPath: Assets/Scenes/SampleScene.unity
-  uploadId: 0
+  packageVersion: 1.1
+  assetPath: Assets/Asteroids/Materials/SkyBox_space_Mat.mat
+  uploadId: 708551
